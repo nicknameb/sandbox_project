@@ -1,30 +1,36 @@
 #include <iostream>
 #include <fstream>
-#include <vector>
+#include "scanner.h"
+#include "monitor.h"
+#include "network_watcher.h"
+#include "sandbox_logic.h"
+#include <iostream>
 
 using namespace std; 
-bool scanFile(const string& filename) {
-    ifstream file(filename, ios::binary);
-    if (!file) {
-        cerr << "File not found: " << filename << endl;
-        return false;
-    }
-
-    vector<unsigned char> buffer((istreambuf_iterator<char>(file)), {});
-
-    // Example signature: Fake malware signature "ABCD1234"
-    vector<unsigned char> signature = { 'A', 'B', 'C', 'D', '1', '2', '3', '4' };
-
-    if (search(buffer.begin(), buffer.end(), signature.begin(), signature.end()) != buffer.end()) {
-        cout << "[ALERT] Malicious signature found in " << filename << "!" << endl;
-        return true;
-    }
-
-    cout << "[SAFE] No threat detected in " << filename << "." << endl;
-    return false;
-}
 
 int main() {
-    scanFile("example.exe"); // Replace with actual file path
+    Scanner scanner;
+    Monitor monitor;
+    NetworkWatcher networkWatcher;
+    Sandbox sandbox;
+
+    string fileToScan = "example.exe"; // Replace with actual path
+
+    cout << "[1] Scanning file..." << endl;
+    bool isMalicious = scanner.scanFile(fileToScan);
+
+    if (isMalicious) {
+        cout << "[2] Running in sandbox for further analysis..." << endl;
+        sandbox.executeInSandbox(fileToScan);
+    }
+
+    cout << "[3] Monitoring system processes..." << endl;
+    monitor.monitorProcesses();
+
+    cout << "[4] Monitoring network traffic..." << endl;
+    networkWatcher.monitorConnections();
+
     return 0;
 }
+
+
