@@ -5,32 +5,32 @@
 #include "network_watcher.h"
 #include "sandbox_logic.h"
 #include <iostream>
-
+#include "pe_analyzer.h"
 using namespace std; 
 
 int main() {
     Scanner scanner;
-    Monitor monitor;
-    NetworkWatcher networkWatcher;
-    Sandbox sandbox;
-
-    string fileToScan = "example.exe"; // Replace with actual path
+    Monitor monitor; 
+    Sandbox sandbox; 
+    string fileToScan = "C:\\Users\\jacob\\source\\repos\\malwarec\\x64\\Debug\\malwarec.exe"; // Replace with actual path
 
     cout << "[1] Scanning file..." << endl;
-    bool isMalicious = scanner.scanFile(fileToScan);
+    bool isMalicious = scanner.scanFile(fileToScan, "signatures.txt"); 
+    bool isMalicious_unencrypted = scanner.scanFile(fileToScan, "unencrypted_signatures.txt"); 
 
-    if (isMalicious) {
+    cout << "malicious signature found: (0/1) " << isMalicious << endl;
+    cout << "malicious unencrypted signature found: (0/1) " << isMalicious_unencrypted << endl;
+
+    
+    if (isMalicious || isMalicious) {
         cout << "[2] Running in sandbox for further analysis..." << endl;
         sandbox.executeInSandbox(fileToScan);
     }
 
-    cout << "[3] Monitoring system processes..." << endl;
-    monitor.monitorProcesses();
 
-    cout << "[4] Monitoring network traffic..." << endl;
-    networkWatcher.monitorConnections();
 
     return 0;
 }
+
 
 
