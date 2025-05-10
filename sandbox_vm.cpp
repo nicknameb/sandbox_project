@@ -34,7 +34,7 @@ bool RunCommandVM(const string& vboxPath, const string& vmName, const string& co
 bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, const string& snapshotName, const string& hostfile_path, const string& guestfile_path) {
     //make sure VM is powred off  
     const string username = "JACOB";
-    const string password = "ahiadel68410";
+    const string password = ""; //add later
     string check_login_command = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " + "--username \"" + username + "\" " + "--password \"" + password + "\" " + "--timeout=10000 " + "--exe \"cmd.exe\" -- cmd.exe /c echo OK";
 
     string power_off_command = "\"" + vboxPath + "\" controlvm \"" + vmName + "\" poweroff"; 
