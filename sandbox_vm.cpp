@@ -48,10 +48,6 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     RunCommandVM(vboxPath, vmName, restore_snapshot_command); 
     Sleep(40000);
 
-    //string read_vm_state = "\"" + vboxPath + "\" showvminfo \"" + vmName + "\" --machinereadable"; 
-
-
-
     //start the vm
     string startCommand = "\"" + vboxPath + "\" startvm \"" + vmName + "\" --type headless";
 
@@ -70,7 +66,6 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
 
      
-
     //check if user can login  
     bool valid_login = RunCommandVM(vboxPath, vmName, check_login_command); 
     Sleep(20000);
@@ -82,13 +77,10 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     { 
         cout << "[ERROR] failed to login" << endl;
     }
-    //string waitForGuestReady = "\"" + vboxPath + "\" guestproperty wait \"" + vmName + "\" \"/VirtualBox/GuestInfo/OS/LoggedInUsers\"" + "--timeout=60000 ";
-
     
 
 
     //create bat file, copy into folder on the vm, run from there
-    const string cwd = "C:\\Users\\jacob\\Downloads\\Regshot_folder";
     const string regshotPath = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\Regshot_cmd-x64-ANSI.exe";
     const string regshot_original = "C:\\Users\\jacob\\Downloads\\reg1.hivu -C"; 
     const string regshot_output = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\~res-x64.txt";
@@ -126,7 +118,6 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     cout << "comparing snaps" << endl;
     RunCommandVM(vboxPath, vmName, run_compare_bat);
-    //Sleep(30000);
     
     string copy_result_bat = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\copy_result.bat";
     const string run_result_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_result_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_result_bat + "\"";
