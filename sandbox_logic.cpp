@@ -5,12 +5,13 @@
 #include "scanner.h" 
 #include <Psapi.h> 
 #include "pe_analyzer.h"
-using namespace std; 
+using namespace std;  
+
+
 
 void Sandbox::executeInSandbox(const string& filename) { 
     NetworkWatcher networkWatcher; 
     Scanner scanner; 
-    PEAnalyzer peanalyzer;
 
     cout << "Running " << filename << " in sandbox..." << endl;
 
@@ -25,29 +26,16 @@ void Sandbox::executeInSandbox(const string& filename) {
         char name_buffer[MAX_PATH];
         GetModuleFileNameExA(pi.hProcess, NULL, (LPSTR)name_buffer, MAX_PATH);
         bool sus_api = scanner.scanSuspendedProcess(pi.hProcess);
-        cout << "found suspicious api: " << sus_api << " in process: "<< name_buffer << endl;
-
-        bool suspicous_imprts = peanalyzer.scanImports(filename); 
-        
-
-        if (sus_api || suspicous_imprts)
-        { 
-            cout << "malicious signature detected, did not run file" << endl; 
-            return;
-        } 
-
-        ResumeThread(pi.hThread); 
-        
-
-        WaitForSingleObject(pi.hProcess, INFINITE); 
+        cout << "found suspicious api in suspended process (0/1): " << sus_api << " in process: "<< name_buffer << endl;
 
 
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
     else {
-        cerr << "Failed to run file in sandbox!" << endl; 
+        cerr << "Failed to create process!" << endl; 
         cout << GetLastError() << endl;
     }
 }
+
 
