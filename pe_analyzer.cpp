@@ -92,7 +92,6 @@ bool PEAnalyzer::scanImports(const string& filepath, HANDLE hProcess) {
                 PIMAGE_IMPORT_BY_NAME funcName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>((BYTE*)baseAddr + funcOffset);
 
                 string name(reinterpret_cast<char*>(funcName->Name)); 
-                cout << "func name : " << name << endl;
                 for (const string& suspect : suspiciousAPIs) {
                     if (name.find(suspect) != string::npos) {
                         cout << "[!] Suspicious API Detected: " << name << " in DLL: " << dllName << endl;
