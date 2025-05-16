@@ -3,12 +3,21 @@
 #include <cstdlib> 
 #include "sandbox_vm.h"  
 #include <chrono>
-
+#include <fstream> 
 using namespace std; 
 using namespace std::chrono;
 
+  
+
 bool RunCommandVM(const string& vboxPath, const string& vmName, const string& command)
-{
+{  
+    char path_buffer[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, path_buffer);
+    string current_dir(path_buffer);
+    string log_file = current_dir + "\\scan_output.txt";
+
+    ofstream log(log_file, ios::app);
+
     STARTUPINFOA si_command = { sizeof(si_command) };
     PROCESS_INFORMATION pi_command;
 
@@ -19,13 +28,13 @@ bool RunCommandVM(const string& vboxPath, const string& vmName, const string& co
     SetPriorityClass(pi_command.hProcess, HIGH_PRIORITY_CLASS);
     if (!success)
     {
-        cout << "[ERROR] failed to run command: " << command << endl;  
+        log << "ERROR: failed to run command: " << command << endl;
         return false;
     }
     else
     {
         WaitForSingleObject(pi_command.hProcess, INFINITE);
-        cout << "VM ran command succefully: "<< command << endl;
+        log << "VM ran command succefully: "<< command << endl;
         CloseHandle(pi_command.hProcess);
         CloseHandle(pi_command.hThread); 
         return true;
@@ -33,23 +42,30 @@ bool RunCommandVM(const string& vboxPath, const string& vmName, const string& co
 } 
 
 
-bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, const string& snapshotName, const string& hostfile_path, const string& guestfile_path) {
-    //make sure VM is powred off  
-    const string username = "JACOB";
-    const string password = "ahiadel68410";
+bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, const string& snapshotName, const string& hostfile_path, const string& guestfile_path, const string& username, const string& password) {
+    char path_buffer[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, path_buffer);
+    string current_dir(path_buffer);
+    string log_file = current_dir + "\\scan_output.txt";
+
+    ofstream log(log_file, ios::app);
+
+    
     string check_login_command = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " + "--username \"" + username + "\" " + "--password \"" + password + "\" " + "--timeout=10000 " + "--exe \"cmd.exe\" -- cmd.exe /c echo OK";
 
     string power_off_command = "\"" + vboxPath + "\" controlvm \"" + vmName + "\" poweroff"; 
     RunCommandVM(vboxPath, vmName, power_off_command);
     Sleep(10000);
 
-   
-
+    
     //restore snapshot
     string restore_snapshot_command = "\"" + vboxPath + "\" snapshot \"" + vmName + "\" restore \"" + snapshotName + "\"";
     RunCommandVM(vboxPath, vmName, restore_snapshot_command); 
-    Sleep(40000);
+    Sleep(30000);
 
+    string discardCmd = "\"" + vboxPath + "\" discardstate \"" + vmName + "\"";
+    RunCommandVM(vboxPath, vmName, discardCmd);
+    Sleep(1000);
 
     string startCommand = "\"" + vboxPath + "\" startvm \"" + vmName + "\" --type headless";
 
@@ -59,22 +75,25 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     BOOL success = CreateProcessA(NULL, (LPSTR)startCommand.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
     SetPriorityClass(pi.hProcess, HIGH_PRIORITY_CLASS);  //vm is very slow otherwise, this location seems to be fine
     if (!success) {
-        cerr << "[ERROR] Failed to start VM Error: " << GetLastError() << endl;
+        log << "ERROR: Failed to start VM Error: " << GetLastError() << endl;
         return false;
     }
-    
-
-    Sleep(36000);
-
-    //check if user can login  
-    /*bool valid_login = RunCommandVM(vboxPath, vmName, check_login_command); 
-    Sleep(20000);
-    if (valid_login)
-    { 
-        cout << "can login to VM" << endl;
-    }  
     else
     { 
+        log << "VM started" << endl;
+    }
+
+    Sleep(46000);
+
+    //check if user can login  
+    /*bool valid_login = RunCommandVM(vboxPath, vmName, check_login_command);
+    Sleep(20000);
+    if (valid_login)
+    {
+        cout << "can login to VM" << endl;
+    }
+    else
+    {
         cout << "[ERROR] failed to login" << endl;
     }*/
     //string waitForGuestReady = "\"" + vboxPath + "\" guestproperty wait \"" + vmName + "\" \"/VirtualBox/GuestInfo/OS/LoggedInUsers\"" + "--timeout=60000 ";
@@ -88,10 +107,10 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     const string regshot_original = "C:\\Users\\jacob\\Downloads\\reg1.hivu -C"; 
     const string regshot_output = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\~res-x64.txt";
 
-    const string take_shot_bat = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\take_shot.bat";
+    const string take_shot_bat = guestfile_path + "take_shot.bat";
 
 
-    cout << "running regshot" << endl;
+    log << "running regshot" << endl;
 
     string run_regshot_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + take_shot_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + take_shot_bat + "\""; //"--verbose"
 
@@ -101,41 +120,42 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     auto duration = duration_cast<seconds>(stop - start);
 
-    cout << "taking a snapshot took: " << duration.count() << "seconds" << endl;
+    log << "taking a snapshot took: " << duration.count() << "seconds" << endl;
     
 
 
     //transfer suspicious application to the vm 
     
 
-    string copy_file_bat = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\copy_malware.bat"; 
+    string copy_file_bat = guestfile_path + "copy_malware.bat";
     string copy_file_command = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_file_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_file_bat + "\"";
     
-    cout << "copying file" << endl;
+    log << "copying file" << endl;
     RunCommandVM(vboxPath, vmName, copy_file_command);
     Sleep(1000); 
 
     size_t pos = hostfile_path.find_last_of("\\/");  //get name of malware itself
     string app_name = hostfile_path.substr(pos + 1); 
 
-    string malware_location = guestfile_path + app_name; 
+    string malware_location = guestfile_path + app_name;  
+    log << "running malware" << endl;
     string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " +"--username \"" + username + "\" " +"--password \"" + password + "\" " +"--exe \"" + malware_location + "\" " +"-- \"" + malware_location + "\"" " --verbose";
-    //RunCommandVM(vboxPath, vmName, run_malware); 
+    RunCommandVM(vboxPath, vmName, run_malware); 
 
-    Sleep(5000); 
- 
-    const string compare_shot_bat = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\compare_shot.bat"; 
+    Sleep(5000);  
+
+    const string compare_shot_bat = guestfile_path + "compare_shot.bat";
     const string run_compare_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + compare_shot_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + compare_shot_bat + "\"";
 
-    cout << "comparing snaps" << endl;  
+    log << "comparing snaps" << endl;  
 
     start = high_resolution_clock::now();
     RunCommandVM(vboxPath, vmName, run_compare_bat); 
     stop = high_resolution_clock::now();
     duration = duration_cast<seconds>(stop - start); 
-    cout << "comparing a snapshot took: " << duration.count() << "seconds" << endl;
+    log << "comparing a snapshot took: " << duration.count() << "seconds" << endl;
     
-    string copy_result_bat = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\copy_result.bat";
+    string copy_result_bat = guestfile_path + "copy_result.bat";
     const string run_result_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_result_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_result_bat + "\"";
     RunCommandVM(vboxPath, vmName, run_result_bat);
     Sleep(1000);
@@ -149,26 +169,3 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     CloseHandle(pi.hThread);
     return true;
 }  
-
-//when reg3 doesnt exist yet:
-
-//Regshot_cmd-x64-ANSI.exe C:\Users\jacob\Downloads\reg3.hivu  
-//run by running "C:\Users\jacob\Downloads\Regshot_folder\take_shot.bat"
-
-//Regshot_cmd-x64-ANSI.exe C:\Users\jacob\Downloads\reg3.hivu -C  
-//run by running "C:\Users\jacob\Downloads\Regshot_folder\compare_shot.bat"
-
-//result will be stored in  "C:\Users\jacob\Downloads\Regshot_folder\~res-x64.txt" 
-
-
-
-//copy file: "C:\Users\jacob\Downloads\Regshot_folder\copy_malware.bat" 
-//from: "Z:\test_folder" 
-//to "C:\Users\jacob\Downloads\malware_folder" 
-//ready made snapshot: "C:\Users\jacob\Downloads\reg4.hivu" 
-
-//notepad path: "C:\Program Files\WindowsApps\Microsoft.WindowsNotepad_11.2501.31.0_x64__8wekyb3d8bbwe\Notepad\Notepad.exe" 
-
-
-
-//path to copy_result.bat = "C:\Users\jacob\Downloads\Regshot_folder\copy_result.bat"
