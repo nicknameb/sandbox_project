@@ -7,6 +7,7 @@ using namespace std;
 
 class Sandbox_vm {  
 public: 
-	bool RunVirtualBoxVM(const string& vboxPath, const string& vmName, const string& snapshotName, const string& hostfile_path, const string& guestfile_path);
+	bool RunVirtualBoxVM(const string& vboxPath, const string& vmName, const string& snapshotName, const string& hostfile_path, const string& guestfile_path, const string& username, const string& password);
 
 };
+
