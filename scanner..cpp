@@ -5,7 +5,8 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype>
-#include <windows.h>
+#include <windows.h> 
+#include <fstream> 
 using namespace std;  
 
 static vector<string> suspiciousAPIs = {
@@ -13,15 +14,20 @@ static vector<string> suspiciousAPIs = {
     "CreateRemoteThread", "VirtualAllocEx", "WriteProcessMemory", "KEYEVENTF_", "GetAsyncKeyState"
 }; 
 
+vector<string> loadSignaturesFromFile(const string& path) { 
+    char path_buffer[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, path_buffer);
+    string current_dir(path_buffer);
+    string log_file = current_dir + "\\scan_output.txt";
 
+    ofstream log(log_file, ios::app);
 
-vector<string> loadSignaturesFromFile(const string& path) {
     ifstream file(path);
     vector<vector<unsigned char>> signature_vector;  
     vector<string> signatures;              //actuacl vector of string signatures
 
     if (!file) {
-        cerr << "[ERROR] Failed to open signature file: " << path << endl;
+        log << "ERROR: Failed to open signature file: " << path << endl;
         return signatures;
     }
 
@@ -37,16 +43,20 @@ vector<string> loadSignaturesFromFile(const string& path) {
 
 
 bool Scanner::scanFile(const string& filename, const string& signature_file) { 
+    char path_buffer[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, path_buffer);
+    string current_dir(path_buffer);
+    string log_file = current_dir + "\\scan_output.txt";
+
+    ofstream log(log_file, ios::app);
 
     ifstream file(filename, ios::binary);
     ostringstream contents;
     contents << file.rdbuf();
     string fileData = contents.str();
 
-    //cout << "file data: "<< fileData << endl;
-
     if (!file) {
-        cerr << "[ERROR] File not found: " << filename << endl;
+        log << "ERROR: File not found: " << filename << endl;
         return false;
     }
 
@@ -56,18 +66,25 @@ bool Scanner::scanFile(const string& filename, const string& signature_file) {
     for (const auto& sig : signatures) { 
 
         if (fileData.find(sig) != string::npos) {
-            cout << "[!] Suspicious signature/API detected: " << sig << " in file: " << filename << endl;
+            log << "SUSPICIOUS_SIGNATURE OR API FOUND: " << sig << " in file: " << filename << endl;
             return true;
         }
     }
 
 
-    cout << "[SAFE] No threat detected in " << filename << endl;
+    log << "No threat signature  detected in " << filename << endl;
     return false;
 } 
 
 
-bool Scanner::scanSuspendedProcess(HANDLE hProcess) {
+bool Scanner::scanSuspendedProcess(HANDLE hProcess) {  
+    char path_buffer[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, path_buffer);
+    string current_dir(path_buffer);
+    string log_file = current_dir + "\\scan_output.txt";
+
+    ofstream log(log_file, ios::app); 
+
     SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);  //get the size of the page
 
@@ -90,7 +107,7 @@ bool Scanner::scanSuspendedProcess(HANDLE hProcess) {
                     for (const auto& api : suspiciousAPIs) {
                         auto it = search(buffer.begin(), buffer.begin() + bytesRead,api.begin(), api.end());
                         if (it != buffer.begin() + bytesRead) {
-                            cout << "[!] Found suspicious API: " << api << " in memory" << endl;
+                            log << "SUSPICIOUS_API FOUND " << api << " in memory" << endl;
                             flag = true;
                         }
                     }
@@ -100,9 +117,10 @@ bool Scanner::scanSuspendedProcess(HANDLE hProcess) {
 
             addr = static_cast<LPCBYTE>(mbi.BaseAddress) + mbi.RegionSize;
         } 
-        else { cout << "virtualqueryex returned 0" << endl; }
+        else  
+        {  
+            log << "ERROR in scanning suspended process: virtualqueryex returned 0" << endl;  
+        }
     } 
     return flag;
 }
-
-
