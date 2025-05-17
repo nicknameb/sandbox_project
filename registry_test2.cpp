@@ -6,7 +6,7 @@ int main() {
     HKEY hKey;
     LPCSTR keyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     LPCSTR valueName = "FakeMalware123";
-    LPCSTR exePath = "%APPDATA%\\malware_simulator.exe";  // Suspicious payload path
+    LPCSTR exePath = "%APPDATA%\\malware_simulator.exe";  
 
     // Open or create the registry key
     LONG result = RegCreateKeyExA(HKEY_CURRENT_USER, keyPath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, NULL
