@@ -13,7 +13,8 @@ static vector<string> suspiciousAPIs = {
 DWORD RvaToOffset(DWORD rva, PIMAGE_NT_HEADERS64 ntHeaders, PIMAGE_SECTION_HEADER sectionHeaders, int numSections) {
     for (int i = 0; i < numSections; ++i) {
         DWORD sectionVA = sectionHeaders[i].VirtualAddress;
-        DWORD sectionSize = sectionHeaders[i].Misc.VirtualSize;
+        DWORD sectionSize = sectionHeaders[i].Misc.VirtualSize; 
+        
         if (rva >= sectionVA && rva < sectionVA + sectionSize) {
             DWORD delta = rva - sectionVA;
             return sectionHeaders[i].PointerToRawData + delta;
@@ -26,7 +27,9 @@ bool PEAnalyzer::scanImports(const string& filepath) {
     char path_buffer[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, path_buffer);
     string current_dir(path_buffer);
-    string log_file = current_dir + "\\scan_output.txt";
+    string log_file = current_dir + "\\scan_output.txt"; 
+
+    bool flag = false;
 
     ofstream log(log_file, ios::app);
 
@@ -93,14 +96,16 @@ bool PEAnalyzer::scanImports(const string& filepath) {
         PIMAGE_THUNK_DATA64 thunkData = reinterpret_cast<PIMAGE_THUNK_DATA64>((BYTE*)baseAddr + thunkOffset);
 
         while (thunkData->u1.AddressOfData != 0) {
-            if (!(thunkData->u1.Ordinal & IMAGE_ORDINAL_FLAG64)) {
+            if (!(thunkData->u1.Ordinal & IMAGE_ORDINAL_FLAG64)) { 
+                
                 DWORD funcOffset = RvaToOffset((DWORD)thunkData->u1.AddressOfData, ntHeaders, sectionHeaders, numSections);
                 PIMAGE_IMPORT_BY_NAME funcName = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>((BYTE*)baseAddr + funcOffset);
 
                 string name(reinterpret_cast<char*>(funcName->Name)); 
                 for (const string& suspect : suspiciousAPIs) {
                     if (name.find(suspect) != string::npos) {
-                        log << "SUSPICIOUS_API FOUND IN EXECUTABLE: " << name << " in DLL: " << dllName << endl;
+                        log << "SUSPICIOUS_API FOUND IN EXECUTABLE: " << name << " in DLL: " << dllName << endl; 
+                        flag = true;
                     }
                 }
             }
@@ -111,5 +116,5 @@ bool PEAnalyzer::scanImports(const string& filepath) {
     UnmapViewOfFile(baseAddr);
     CloseHandle(hMapping);
     CloseHandle(hFile);
-    return true;
+    return flag;
 }
