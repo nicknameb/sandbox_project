@@ -12,26 +12,25 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 4)
+    if (argc < 2)
     {  
-        cout << "usage: antivirus_path.exe <file> <username> <password>" << endl;
+        cout << "usage: antivirus_path.exe <file>" << endl;
         return 1;
     }
     string fileToScan = argv[1]; 
-    string username = argv[2]; 
-    string password = argv[3];
+    string username = "JACOB2";      //this is hard coded because the users need to access the vm anyway
+    string password = "CYBER2025";  //theres no point in hiding password
  
     char path_buffer[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, path_buffer);
     string current_dir(path_buffer); 
     string log_file = current_dir + "\\scan_output.txt";
-    cout << "logfile path: " << log_file << endl;
     ofstream log(log_file, ios::app);
 
     const string vboxPath = "C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe"; //default VBOX installation, a different path will result in issues
-    const string vmName = "SandBoxVM"; 
-    const string current_snapshot = "Snapshot 31";  
-    const string guestfile_path = "C:\\Users\\jacob\\Desktop\\Regshot_folder\\";
+    const string vmName = "SandBoxVM Clone"; 
+    const string current_snapshot = "current snapshot";  
+    const string guestfile_path = "C:\\Regshot_folder\\";
 
     Sandbox_vm sandbox_vm;
     Scanner scanner;
