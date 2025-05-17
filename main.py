@@ -7,6 +7,7 @@ import os
 import shutil
 import sqlite3
 import sys
+
 conn = sqlite3.connect('scores.db', check_same_thread=False)
 c = conn.cursor()
 
@@ -30,17 +31,13 @@ OLD_SNAPSHOT_FOLDER = current_directory + "\\old_snapshot_folder\\"
 OLD_SNAP_NAME = "old_snapshot.txt"
 
 HIGH_PRIORITY_CLASS = 0x00000080
-REALTIME_PRIORITY_CLASS = 0x00000100  # Use with caution
-suspicious_registry = "False"
-suspicious_signature = "False"
-
+REALTIME_PRIORITY_CLASS = 0x00000100
 
 def get_unique_filename(dest_folder, filename):
     name, ext = os.path.splitext(filename)
     counter = 1
     new_filename = filename
 
-    # Keep incrementing until a unique filename is found
     while os.path.exists(os.path.join(dest_folder, new_filename)):
         new_filename = f"{name}({counter}){ext}"
         counter += 1
@@ -55,29 +52,15 @@ class AntivirusGUI:
         with open(LOG_FILE, "w", encoding="utf-8") as f:
             pass
 
-        # Track user file selection
         self.file_path = ""
         self.stop_monitor = False
 
         self.suspicious_signature_found = tk.BooleanVar(value=False)
         self.suspicious_registry_found = tk.BooleanVar(value=False)
 
-        # === GUI ELEMENTS ===
-
         status_frame = tk.Frame(master)
         status_frame.pack(anchor="ne", padx=10, pady=5)
 
-        self.user_label = tk.Label(master, text="Username:")
-        self.user_label.pack()
-
-        self.username_entry = tk.Entry(master)
-        self.username_entry.pack()
-
-        self.pass_label = tk.Label(master, text="Password:")
-        self.pass_label.pack()
-
-        self.password_entry = tk.Entry(master, show="*")  # Masked input
-        self.password_entry.pack()
 
         self.signature_checkbox = tk.Checkbutton(
             status_frame, text="Suspicious Signature Detected",
@@ -109,7 +92,6 @@ class AntivirusGUI:
     def on_close(self):
         self.stop_monitor = True
 
-        # Kill antivirus process if still running
         if self.antivirus_process and self.antivirus_process.poll() is None:
             self.log("[INFO] Terminating antivirus process...")
             self.antivirus_process.terminate()
@@ -120,9 +102,13 @@ class AntivirusGUI:
                 self.log("[WARN] Antivirus process did not exit gracefully, forcing kill.")
                 self.antivirus_process.kill()
 
+        #close db on finish
+        conn.close()
+
         self.master.destroy()
     def select_file(self):
-        # Opens a dialog for user to select the application to scan
+        self.text_output.delete('1.0', tk.END)
+
         self.file_path = filedialog.askopenfilename(title="Select a file")
         if self.file_path:
             self.log(f"[INFO] Selected file: {self.file_path}")
@@ -132,12 +118,11 @@ class AntivirusGUI:
     def monitor_log(self):
         try:
             with open(LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
-                f.seek(0, os.SEEK_END)  # Go to the end of the file initially
+                f.seek(0, os.SEEK_END)
                 while not self.stop_monitor:
                     line = f.readline()
                     if "SUSPICIOUS" in line:
                         suspicious_signature = "True"
-                        print(line)
                         self.suspicious_signature_found.set(True)
                     if line:
                         self.append_to_gui(line)
@@ -154,7 +139,7 @@ class AntivirusGUI:
     def log(self, msg):
         self.append_to_gui(msg + "\n")
 
-    # === REGISTRY ANALYSIS (RUN/RUNONCE KEYS) ===
+
 
     def scan_registry(self, diff_file):
         if not os.path.isfile(diff_file):
@@ -163,15 +148,13 @@ class AntivirusGUI:
 
         suspicious = []
 
-
-        # Read the Regshot diff and look for Run/RunOnce entries
         with open(diff_file, "r", encoding="utf-8", errors="ignore") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("["):
                     continue
 
-                # Match entries containing "Run" or "RunOnce"
+
                 if "\\run" in line.lower() or "\\runonce" in line.lower():
                     if ":" in line:
                         parts = line.split(":", 1)
@@ -180,15 +163,12 @@ class AntivirusGUI:
                         name = key.split("\\")[-1]
                         parent = "\\".join(key.split("\\")[:-1])
 
-                        # Check if the path is suspicious
+
                         if any(s in value.lower() for s in ["appdata", "startup", "system32\\tasks"]):
                             suspicious.append({"key": parent, "name": name, "value": value})
-                            suspicious_registry = "True"
+
                             self.suspicious_registry_found.set(True)
 
-
-
-        # Show suspicious registry values in GUI
         if (not (not suspicious)):
             self.log("\n[INFO] Suspicious Registry Entries:")
         else:
@@ -197,24 +177,12 @@ class AntivirusGUI:
             self.log(f"Key: {entry['key']} | Name: {entry['name']} | Value: {entry['value']}")
 
 
-
     def run_scan(self):
-        # Step 1: Verify a file was selected
+
         if not self.file_path:
             self.log("[ERROR] No file selected.")
             return
 
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-
-        # Clear the fields after reading
-        self.username_entry.delete(0, tk.END)
-        self.password_entry.delete(0, tk.END)
-
-        # Step 2: Copy file to working directory (sandbox input folder)
         copied_path = os.path.join(WORK_DIR, os.path.basename(self.file_path))
 
         if (not os.path.exists(copied_path)):
@@ -227,17 +195,15 @@ class AntivirusGUI:
         else:
             self.log(f"file already exists in the working directory: {copied_path}")
 
-        # Step 3: Start monitoring the antivirus log output in real time
         self.stop_monitor = False
         threading.Thread(target=self.monitor_log, daemon=True).start()
 
-        # Step 4: Start antivirus scan in a new thread
-        threading.Thread(target=self.run_antivirus, args=(copied_path, username, password), daemon=True).start()
+        threading.Thread(target=self.run_antivirus, args=(copied_path,), daemon=True).start()
 
-    def run_antivirus(self, copied_path, username, password):
+    def run_antivirus(self, copied_path):
         try:
             self.antivirus_process = subprocess.Popen(
-                [ANTIVIRUS_EXE, copied_path, username, password],
+                [ANTIVIRUS_EXE, copied_path],
                 creationflags=0x00000080  # HIGH_PRIORITY_CLASS
             )
             self.antivirus_process.wait()
@@ -266,15 +232,9 @@ class AntivirusGUI:
 
             shutil.move(os.path.join(REGSHOT_DIFF_FILE, new_name), OLD_SNAPSHOT_FOLDER)
 
-            c.execute("INSERT INTO data (app_name, suspicious_signature, suspicious_registry) VALUES (?, ?, ?)", (self.file_path, suspicious_signature, suspicious_registry))
+            c.execute("INSERT INTO data (app_name, suspicious_signature, suspicious_registry) VALUES (?, ?, ?)", (self.file_path, str(self.suspicious_signature_found.get()), str(self.suspicious_registry_found.get())))
             conn.commit()
 
-
-
-
-
-
-# === RUN APPLICATION ===
 
 if __name__ == "__main__":
     root = tk.Tk()
