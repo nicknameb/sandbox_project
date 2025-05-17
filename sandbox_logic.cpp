@@ -18,7 +18,10 @@ void ScanProcess::ScanCreatedProcess(const string& filename) {
 
     ofstream log(log_file, ios::app);
 
-    log << "Running " << filename << " in " << endl;
+    size_t pos = filename.find_last_of("\\/");  //get name of malware itself
+    string app_name = filename.substr(pos + 1); 
+
+    log << "Running " << app_name << " in " << endl;
 
     STARTUPINFOA si = { sizeof(si) };
     PROCESS_INFORMATION pi;
@@ -27,14 +30,11 @@ void ScanProcess::ScanCreatedProcess(const string& filename) {
 
         log << "Suspended Process Created! PID: " << pi.dwProcessId << endl;
 
-
-        char name_buffer[MAX_PATH];
-        GetModuleFileNameExA(pi.hProcess, NULL, (LPSTR)name_buffer, MAX_PATH);
         bool sus_api = scanner.scanSuspendedProcess(pi.hProcess);  
 
         if (sus_api)
         {
-            log << "SUSPICIOUS_API FOUND IN SUSPENDED PROCESS: " << name_buffer << endl;
+            log << "SUSPICIOUS_API FOUND IN SUSPENDED PROCESS: " << app_name << endl;
         }
 
         CloseHandle(pi.hProcess);
