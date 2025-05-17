@@ -50,9 +50,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     ofstream log(log_file, ios::app);
 
-    
-    string check_login_command = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " + "--username \"" + username + "\" " + "--password \"" + password + "\" " + "--timeout=10000 " + "--exe \"cmd.exe\" -- cmd.exe /c echo OK";
-
+    //make sure the vm is powered off
     string power_off_command = "\"" + vboxPath + "\" controlvm \"" + vmName + "\" poweroff"; 
     RunCommandVM(vboxPath, vmName, power_off_command);
     Sleep(10000);
@@ -63,6 +61,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     RunCommandVM(vboxPath, vmName, restore_snapshot_command); 
     Sleep(30000);
 
+    //discard saved state if thers any, to prevent lock
     string discardCmd = "\"" + vboxPath + "\" discardstate \"" + vmName + "\"";
     RunCommandVM(vboxPath, vmName, discardCmd);
     Sleep(1000);
@@ -85,8 +84,8 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     Sleep(46000);
 
+    //run bat file to run regshot and take a snapshoy of the registry
     const string take_shot_bat = guestfile_path + "take_shot.bat";
-
 
     log << "running regshot" << endl;
 
@@ -112,11 +111,13 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     RunCommandVM(vboxPath, vmName, copy_file_command);
     Sleep(1000); 
 
+
+    //run the potential malware inside the vm
     size_t pos = hostfile_path.find_last_of("\\/");  //get name of malware itself
     string app_name = hostfile_path.substr(pos + 1); 
 
     string malware_location = guestfile_path + app_name;  
-    log << "running potential malware" << endl; //"--timeout 5000 --no-wait-stdout" 
+    log << "running potential malware" << endl;  
 
     string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
@@ -126,7 +127,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     Sleep(3000);   
 
     
-
+    //take another snapshot
     const string compare_shot_bat = guestfile_path + "compare_shot.bat";
     const string run_compare_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + compare_shot_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + compare_shot_bat + "\"";
 
@@ -138,6 +139,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     duration = duration_cast<seconds>(stop - start); 
     log << "comparing a snapshot took: " << duration.count() << "seconds" << endl;
     
+    //copy result over to shared file
     string copy_result_bat = guestfile_path + "copy_result.bat";
     const string run_result_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_result_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_result_bat + "\"";
     RunCommandVM(vboxPath, vmName, run_result_bat);
