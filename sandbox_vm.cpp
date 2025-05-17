@@ -85,28 +85,6 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     Sleep(46000);
 
-    //check if user can login  
-    /*bool valid_login = RunCommandVM(vboxPath, vmName, check_login_command);
-    Sleep(20000);
-    if (valid_login)
-    {
-        cout << "can login to VM" << endl;
-    }
-    else
-    {
-        cout << "[ERROR] failed to login" << endl;
-    }*/
-    //string waitForGuestReady = "\"" + vboxPath + "\" guestproperty wait \"" + vmName + "\" \"/VirtualBox/GuestInfo/OS/LoggedInUsers\"" + "--timeout=60000 ";
-
-    
-
-
-    //create bat file, copy into folder on the vm, run from there
-    const string cwd = "C:\\Users\\jacob\\Downloads\\Regshot_folder";
-    const string regshotPath = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\Regshot_cmd-x64-ANSI.exe";
-    const string regshot_original = "C:\\Users\\jacob\\Downloads\\reg1.hivu -C"; 
-    const string regshot_output = "C:\\Users\\jacob\\Downloads\\Regshot_folder\\~res-x64.txt";
-
     const string take_shot_bat = guestfile_path + "take_shot.bat";
 
 
