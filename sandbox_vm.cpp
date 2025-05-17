@@ -138,11 +138,16 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     string app_name = hostfile_path.substr(pos + 1); 
 
     string malware_location = guestfile_path + app_name;  
-    log << "running malware" << endl;
-    string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " +"--username \"" + username + "\" " +"--password \"" + password + "\" " +"--exe \"" + malware_location + "\" " +"-- \"" + malware_location + "\"" " --verbose";
-    RunCommandVM(vboxPath, vmName, run_malware); 
+    log << "running potential malware" << endl; //"--timeout 5000 --no-wait-stdout" 
 
-    Sleep(5000);  
+    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+
+    string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + malware_location + "' -WindowStyle Hidden\"";
+
+    RunCommandVM(vboxPath, vmName, run_malware); 
+    Sleep(3000);   
+
+    
 
     const string compare_shot_bat = guestfile_path + "compare_shot.bat";
     const string run_compare_bat = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + compare_shot_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + compare_shot_bat + "\"";
