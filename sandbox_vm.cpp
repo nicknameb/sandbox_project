@@ -18,25 +18,50 @@ bool RunCommandVM(const string& vboxPath, const string& vmName, const string& co
 
     ofstream log(log_file, ios::app);
 
-    STARTUPINFOA si_command = { sizeof(si_command) };
-    PROCESS_INFORMATION pi_command;
+    HANDLE hRead, hWrite;
+    SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+    CreatePipe(&hRead, &hWrite, &sa, 0);
+
+    STARTUPINFOA si = { sizeof(STARTUPINFOA) };   //capture output with pipeline
+    PROCESS_INFORMATION pi;
+    si.dwFlags |= STARTF_USESTDHANDLES;
+    si.hStdOutput = hWrite;
+    si.hStdError = hWrite;
+    si.hStdInput = NULL;
 
     char cmdLine[512];  
     strncpy_s(cmdLine, command.c_str(), sizeof(cmdLine) - 1);
 
-    BOOL success = CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &si_command, &pi_command);
-    SetPriorityClass(pi_command.hProcess, HIGH_PRIORITY_CLASS);
+    BOOL success = CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+    SetPriorityClass(pi.hProcess, HIGH_PRIORITY_CLASS);
     if (!success)
-    {
+    { 
+        CloseHandle(hWrite);
+        CloseHandle(hRead);
         log << "ERROR: failed to run command: " << command << endl;
         return false;
-    }
+    } 
     else
-    {
-        WaitForSingleObject(pi_command.hProcess, INFINITE);
+    { 
+        CloseHandle(hWrite); 
+
+        char buffer[4096];
+        DWORD bytesRead;
+        string output; 
+
+        while (ReadFile(hRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+            buffer[bytesRead] = '\0';
+            output += buffer;
+        } 
+
+        CloseHandle(hRead); 
+
+        WaitForSingleObject(pi.hProcess, INFINITE);
         log << "VM ran command succefully: "<< command << endl;
-        CloseHandle(pi_command.hProcess);
-        CloseHandle(pi_command.hThread); 
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);  
+
+        log << output << endl;
         return true;
     }
 } 
@@ -59,7 +84,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     //restore snapshot
     string restore_snapshot_command = "\"" + vboxPath + "\" snapshot \"" + vmName + "\" restore \"" + snapshotName + "\"";
     RunCommandVM(vboxPath, vmName, restore_snapshot_command); 
-    Sleep(30000);
+    Sleep(25000);
 
     //discard saved state if thers any, to prevent lock
     string discardCmd = "\"" + vboxPath + "\" discardstate \"" + vmName + "\"";
@@ -82,7 +107,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
         log << "VM started" << endl;
     }
 
-    Sleep(46000);
+    Sleep(35000);
 
     //run bat file to run regshot and take a snapshoy of the registry
     const string take_shot_bat = guestfile_path + "take_shot.bat";
@@ -126,6 +151,12 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     RunCommandVM(vboxPath, vmName, run_malware); 
     Sleep(3000);   
 
+    string network_scan_path = guestfile_path + "network_scan.exe";
+    string run_network_scan = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + network_scan_path + "' -ArgumentList '" + app_name + "' -WindowStyle Hidden\"";
+    RunCommandVM(vboxPath, vmName, run_network_scan);
+
+    Sleep(3000);
+    
     
     //take another snapshot
     const string compare_shot_bat = guestfile_path + "compare_shot.bat";
