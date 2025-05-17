@@ -1,0 +1,16 @@
+[1] Scanning file...
+No static threat signature  detected in registry_test2.exe
+No static threat signature  detected in registry_test2.exe
+testing suspended process for further analysis
+Running registry_test2.exe in 
+Suspended Process Created! PID: 29676
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" controlvm "SandBoxVM Clone" poweroff
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" snapshot "SandBoxVM Clone" restore "current snapshot"
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" discardstate "SandBoxVM Clone"
+VM started
+running regshot
+VM ran command succefully: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe guestcontrol "SandBoxVM Clone" run --exe "C:\Regshot_folder\take_shot.bat" --username "JACOB2" --password "cyber2025" -- "C:\Regshot_folder\take_shot.bat"
+taking a snapshot took: 79seconds
+copying file
+VM ran command succefully: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe guestcontrol "SandBoxVM Clone" run --exe "C:\Regshot_folder\copy_malware.bat" --username "JACOB2" --password "cyber2025" -- "C:\Regshot_folder\copy_malware.bat"
+running potential malware
