@@ -1,0 +1,10 @@
+[1] Scanning file...
+No static threat signature  detected in registry_test2.exe
+No static threat signature  detected in registry_test2.exe
+testing suspended process for further analysis
+Running registry_test2.exe in 
+Suspended Process Created! PID: 13020
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" controlvm "SandBoxVM Clone" poweroff
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" snapshot "SandBoxVM Clone" restore "current snapshot"
+VM ran command succefully: "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" discardstate "SandBoxVM Clone"
+VM started
