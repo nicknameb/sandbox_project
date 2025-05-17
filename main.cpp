@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     }
     string fileToScan = argv[1]; 
     string username = "JACOB2";      //this is hard coded because the users need to access the vm anyway
-    string password = "CYBER2025";  //theres no point in hiding password
+    string password = "cyber2025";  //theres no point in hiding password
  
     char path_buffer[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, path_buffer);
