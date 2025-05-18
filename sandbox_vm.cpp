@@ -93,18 +93,40 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
 
     string startCommand = "\"" + vboxPath + "\" startvm \"" + vmName + "\" --type headless";
 
-    STARTUPINFOA si = { sizeof(STARTUPINFOA) };
-    PROCESS_INFORMATION pi;
+    HANDLE hRead_start, hWrite_start;   //prevent terminal opening
+    SECURITY_ATTRIBUTES sa_start = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+    CreatePipe(&hRead_start, &hWrite_start, &sa_start, 0);
 
-    BOOL success = CreateProcessA(NULL, (LPSTR)startCommand.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
-    SetPriorityClass(pi.hProcess, HIGH_PRIORITY_CLASS);  //vm is very slow otherwise, this location seems to be fine
-    if (!success) {
+    STARTUPINFOA si_start = { sizeof(STARTUPINFOA) };   
+    PROCESS_INFORMATION pi_start;
+    si_start.dwFlags |= STARTF_USESTDHANDLES;
+    si_start.hStdOutput = hWrite_start;
+    si_start.hStdError = hWrite_start;
+    si_start.hStdInput = NULL;
+
+    BOOL success = CreateProcessA(NULL, (LPSTR)startCommand.c_str(), NULL, NULL, TRUE, 0, NULL, NULL, &si_start, &pi_start);
+    SetPriorityClass(pi_start.hProcess, HIGH_PRIORITY_CLASS);  //vm is very slow otherwise, this location seems to be fine
+    if (!success) { 
+        CloseHandle(hWrite_start);
+        CloseHandle(hRead_start);
         log << "ERROR: Failed to start VM Error: " << GetLastError() << endl;
         return false;
     }
     else
-    { 
-        log << "VM started" << endl;
+    {  
+        CloseHandle(hWrite_start);
+
+        char buffer[4096];
+        DWORD bytesRead;
+        string vm_launch_output;
+
+        while (ReadFile(hRead_start, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+            buffer[bytesRead] = '\0';
+            vm_launch_output += buffer;
+        }
+
+        CloseHandle(hRead_start);
+        log << vm_launch_output << endl;
     }
 
     Sleep(35000);
@@ -152,7 +174,8 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     Sleep(3000);   
 
     string network_scan_path = guestfile_path + "network_scan.exe";
-    string run_network_scan = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + network_scan_path + "' -ArgumentList '" + app_name + "' -WindowStyle Hidden\"";
+    string run_network_scan = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + network_scan_path + "\" -- " "\"" + network_scan_path + "\" \"" + app_name + "\"";      
+
     RunCommandVM(vboxPath, vmName, run_network_scan);
 
     Sleep(3000);
@@ -181,7 +204,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     Sleep(10000); 
 
 
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
+    CloseHandle(pi_start.hProcess);
+    CloseHandle(pi_start.hThread);
     return true;
 }  
