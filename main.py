@@ -7,6 +7,7 @@ import os
 import shutil
 import sqlite3
 import sys
+import requests
 
 conn = sqlite3.connect('scores.db', check_same_thread=False)
 c = conn.cursor()
@@ -29,6 +30,7 @@ REGSHOT_DIFF_FILE = current_directory + "\\snap_result_folder\\~res-x64.txt"
 RESULT_FOLDER = current_directory + "\\snap_result_folder\\"
 OLD_SNAPSHOT_FOLDER = current_directory + "\\old_snapshot_folder\\"
 OLD_SNAP_NAME = "old_snapshot.txt"
+TOR_LIST = WORK_DIR + "\\tor_nodes.txt"
 
 HIGH_PRIORITY_CLASS = 0x00000080
 REALTIME_PRIORITY_CLASS = 0x00000100
@@ -55,12 +57,13 @@ class AntivirusGUI:
         self.file_path = ""
         self.stop_monitor = False
 
+        self.antivirus_process = None
+
         self.suspicious_signature_found = tk.BooleanVar(value=False)
         self.suspicious_registry_found = tk.BooleanVar(value=False)
 
         status_frame = tk.Frame(master)
         status_frame.pack(anchor="ne", padx=10, pady=5)
-
 
         self.signature_checkbox = tk.Checkbutton(
             status_frame, text="Suspicious Signature Detected",
@@ -112,7 +115,6 @@ class AntivirusGUI:
         self.file_path = filedialog.askopenfilename(title="Select a file")
         if self.file_path:
             self.log(f"[INFO] Selected file: {self.file_path}")
-
 
 
     def monitor_log(self):
@@ -176,6 +178,18 @@ class AntivirusGUI:
         for entry in suspicious:
             self.log(f"Key: {entry['key']} | Name: {entry['name']} | Value: {entry['value']}")
 
+    def generate_tor_list_file(self, tor_list_file):
+        url = "https://check.torproject.org/exit-addresses"
+        response = requests.get(url)
+        if response.status_code == 200:
+            with open(tor_list_file, 'w') as f:
+                for line in response.text.splitlines():
+                    if line.startswith("ExitAddress"):
+                        ip = line.split()[1]
+                        f.write(ip + "\n")
+            self.log(f"Saved Tor IP list to {tor_list_file}")
+        else:
+            self.log("Failed to download Tor exit node list")
 
     def run_scan(self):
 
@@ -195,6 +209,9 @@ class AntivirusGUI:
         else:
             self.log(f"file already exists in the working directory: {copied_path}")
 
+        self.generate_tor_list_file(TOR_LIST)
+
+        time.sleep(3)
         self.stop_monitor = False
         threading.Thread(target=self.monitor_log, daemon=True).start()
 
@@ -237,6 +254,9 @@ class AntivirusGUI:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    gui = AntivirusGUI(root)
-    root.mainloop()
+    try:
+        root = tk.Tk()
+        gui = AntivirusGUI(root)
+        root.mainloop()
+    except Exception as e:
+        print(f"[FATAL] Unhandled GUI error: {e}")
