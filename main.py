@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import sys
 import requests
+import traceback
 
 conn = sqlite3.connect('scores.db', check_same_thread=False)
 c = conn.cursor()
@@ -61,6 +62,7 @@ class AntivirusGUI:
 
         self.suspicious_signature_found = tk.BooleanVar(value=False)
         self.suspicious_registry_found = tk.BooleanVar(value=False)
+        self.suspicious_tor_connection = tk.BooleanVar(value=False)
 
         status_frame = tk.Frame(master)
         status_frame.pack(anchor="ne", padx=10, pady=5)
@@ -76,6 +78,12 @@ class AntivirusGUI:
             variable=self.suspicious_registry_found, state="disabled", anchor="w"
         )
         self.registry_checkbox.pack(anchor="e")
+
+        self.tor_checkbox = tk.Checkbutton(
+            status_frame, text="Connects to Tor",
+            variable=self.suspicious_tor_connection, state="disabled", anchor="w"
+        )
+        self.tor_checkbox.pack(anchor="e")
 
         self.label = tk.Label(master, text="Select an application to scan:")
         self.label.pack()
@@ -126,6 +134,9 @@ class AntivirusGUI:
                     if "SUSPICIOUS" in line:
                         suspicious_signature = "True"
                         self.suspicious_signature_found.set(True)
+                    if "process connects to tor nodes" in line:
+                        self.suspicious_tor_connection.set(True)
+
                     if line:
                         self.append_to_gui(line)
                     else:
@@ -258,5 +269,8 @@ if __name__ == "__main__":
         root = tk.Tk()
         gui = AntivirusGUI(root)
         root.mainloop()
-    except Exception as e:
-        print(f"[FATAL] Unhandled GUI error: {e}")
+    except Exception:
+        with open(LOG_FILE, "w") as f:
+            f.write("Unhandled exception:\n")
+            traceback.print_exc(file=f)
+        input("An error occurred. Press Enter to exit...")
