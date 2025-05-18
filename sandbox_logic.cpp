@@ -37,6 +37,9 @@ void ScanProcess::ScanCreatedProcess(const string& filename) {
             log << "SUSPICIOUS_API FOUND IN SUSPENDED PROCESS: " << app_name << endl;
         }
 
+        TerminateProcess(pi.hProcess, 1); 
+        WaitForSingleObject(pi.hProcess, 500); 
+        
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
