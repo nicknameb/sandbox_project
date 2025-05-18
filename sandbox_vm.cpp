@@ -166,7 +166,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     string malware_location = guestfile_path + app_name;  
     log << "running potential malware" << endl;  
 
-    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"; //default powershell path on windows
 
     string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + malware_location + "' -WindowStyle Hidden\"";
 
