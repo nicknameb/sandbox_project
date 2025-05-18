@@ -8,9 +8,10 @@
 #include <set> 
 #include <windows.h>
 #include <wininet.h>
-#include <iostream>
-#include <string> 
-#include <TlHelp32.h>
+#include <fstream>
+#include <string>  
+#include <unordered_set>
+#include <TlHelp32.h> 
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib") 
 #pragma comment(lib, "wininet.lib")
@@ -21,44 +22,36 @@ wchar_t* ConvertStringToWChar(const string& str) {
     wchar_t* wstr = new wchar_t[size_needed];
     MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr, size_needed);
     return wstr;
+} 
+
+string WCharToString(const wchar_t* wstr) {
+    if (!wstr) return "";
+
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
+    string result(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, &result[0], size_needed, nullptr, nullptr);
+    result.pop_back(); 
+    return result;
+} 
+
+unordered_set<string> LoadTorIPs(const string& filename) 
+{
+    unordered_set<string> torIPs;
+    ifstream file(filename);
+    string line;
+    while (getline(file, line)) {
+        if (!line.empty()) {
+            torIPs.insert(line);
+        }
+    }
+    return torIPs;
+} 
+
+bool isTorExitNode(const string& ipAddress, const unordered_set<string>& torIPs) {
+    return torIPs.find(ipAddress) != torIPs.end();
 }
 
-bool isTorExitNode(const  string& ipAddress) {
-    HINTERNET hInternet = InternetOpenA("TorCheck", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
-    if (!hInternet) {
-        cerr << "Failed to open internet handle." << endl;
-        return false;
-    }
-
-    string url = "https://www.dan.me.uk/torcheck?ip=" + ipAddress;
-    HINTERNET hFile = InternetOpenUrlA(hInternet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD, 0);
-    if (!hFile) {
-        cerr << "Failed to open URL: " << url << endl;
-        InternetCloseHandle(hInternet);
-        return false;
-    }
-
-    char buffer[4096];
-    DWORD bytesRead;
-    string response;
-
-    while (InternetReadFile(hFile, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
-        buffer[bytesRead] = 0;
-        response += buffer;
-    }
-
-    InternetCloseHandle(hFile);
-    InternetCloseHandle(hInternet);
-
-    if (response.find("is a TOR Exit Node") != string::npos)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-bool Survey_connections(DWORD targetPID) {
+bool Survey_connections(DWORD targetPID, unordered_set<string> torIPs) {
     bool flag = false;
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {    
@@ -72,7 +65,7 @@ bool Survey_connections(DWORD targetPID) {
     tcpTable = (PMIB_TCPTABLE_OWNER_PID)malloc(size);
 
     if (GetExtendedTcpTable(tcpTable, &size, false, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR) {
-        cerr << "Failed to get TCP table" << endl;
+        cout << "Failed to get TCP table" << endl;
         free(tcpTable);                
         WSACleanup();
         return false;
@@ -95,7 +88,7 @@ bool Survey_connections(DWORD targetPID) {
             cout << "Local: " << inet_ntoa(localAddr) << ":" << localPort 
                 << " | Remote: " << inet_ntoa(remoteAddr) << ":" << remotePort
                 << " | State: " << row.dwState << endl;
-            if (isTorExitNode(inet_ntoa(remoteAddr)))
+            if (isTorExitNode(inet_ntoa(remoteAddr), torIPs))
             { 
                 flag = true;
             }
@@ -117,11 +110,13 @@ int main(int argc, char* argv[])
         return 1;
     } 
     string process_name = argv[1]; 
-
+   
     bool is_alive = true; 
 
-    cout << "scanning for suspicious tor connections in process..." << process_name << endl; 
+    cout << "scanning for suspicious tor connections in application..." << process_name <<  endl; 
 
+    unordered_set<string> torIPs = LoadTorIPs("C:\\Regshot_folder\\tor_nodes.txt");
+ 
     PROCESSENTRY32 pe32;
 
     pe32.dwSize = sizeof(pe32);
@@ -137,8 +132,9 @@ int main(int argc, char* argv[])
         do {
 
             if (wcscmp(pe32.szExeFile, ConvertStringToWChar(process_name)) == 0)
-            {
-                bool has_sus_connections = Survey_connections(pe32.th32ProcessID);  
+            { 
+                cout << WCharToString(pe32.szExeFile) << endl;
+                bool has_sus_connections = Survey_connections(pe32.th32ProcessID, torIPs);
 
                 if (has_sus_connections)
                 { 
