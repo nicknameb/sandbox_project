@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
 
     bool is_alive = true; 
 
-    cout << "scanning for suspicious tor connections..." << endl; 
+    cout << "scanning for suspicious tor connections in process..." << process_name << endl; 
 
     PROCESSENTRY32 pe32;
 
