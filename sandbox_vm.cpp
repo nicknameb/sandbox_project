@@ -166,7 +166,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     string malware_location = guestfile_path + app_name;  
     log << "running potential malware" << endl;  
 
-    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"; //default powershell path on windows
+    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
     string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + malware_location + "' -WindowStyle Hidden\"";
 
@@ -174,7 +174,7 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     Sleep(3000);   
 
     string network_scan_path = guestfile_path + "network_scan.exe";
-    string run_network_scan = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + network_scan_path + "\" -- " "\"" + network_scan_path + "\" \"" + app_name + "\"";      
+    string run_network_scan = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + network_scan_path + "\" -- " "\"" + app_name +  "\"";
 
     RunCommandVM(vboxPath, vmName, run_network_scan);
 
