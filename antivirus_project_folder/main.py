@@ -9,6 +9,7 @@ import sqlite3
 import sys
 import requests
 import traceback
+import hashlib
 
 conn = sqlite3.connect('scores.db', check_same_thread=False)
 c = conn.cursor()
@@ -32,6 +33,7 @@ RESULT_FOLDER = current_directory + "\\snap_result_folder\\"
 OLD_SNAPSHOT_FOLDER = current_directory + "\\old_snapshot_folder\\"
 OLD_SNAP_NAME = "old_snapshot.txt"
 TOR_LIST = WORK_DIR + "\\tor_nodes.txt"
+HASH_LIST = current_directory + "\\signatures.txt"
 
 HIGH_PRIORITY_CLASS = 0x00000080
 REALTIME_PRIORITY_CLASS = 0x00000100
@@ -46,6 +48,15 @@ def get_unique_filename(dest_folder, filename):
         counter += 1
 
     return new_filename
+
+def compute_sha256(file_path):
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
 
 class AntivirusGUI:
     def __init__(self, master):
@@ -63,6 +74,7 @@ class AntivirusGUI:
         self.suspicious_signature_found = tk.BooleanVar(value=False)
         self.suspicious_registry_found = tk.BooleanVar(value=False)
         self.suspicious_tor_connection = tk.BooleanVar(value=False)
+        self.suspicious_hash = tk.BooleanVar(value=False)
 
         status_frame = tk.Frame(master)
         status_frame.pack(anchor="ne", padx=10, pady=5)
@@ -84,6 +96,12 @@ class AntivirusGUI:
             variable=self.suspicious_tor_connection, state="disabled", anchor="w"
         )
         self.tor_checkbox.pack(anchor="e")
+
+        self.hash_checkbox = tk.Checkbutton(
+            status_frame, text="Suspicious hash signature",
+            variable=self.suspicious_hash, state="disabled", anchor="w"
+        )
+        self.hash_checkbox.pack(anchor="e")
 
         self.label = tk.Label(master, text="Select an application to scan:")
         self.label.pack()
@@ -202,11 +220,32 @@ class AntivirusGUI:
         else:
             self.log("Failed to download Tor exit node list")
 
+
+    def compare_hash(self, hash_file, file_to_scan):
+        try:
+            file_hash = compute_sha256(file_to_scan).lower()
+
+            with open(hash_file, "r", encoding="utf-8", errors="ignore") as f:
+                known_hashes = set(line.strip().lower() for line in f if line.strip())
+
+            return file_hash in known_hashes
+
+        except Exception as e:
+            print(f"[ERROR] Failed to check file: {e}")
+            return False
+
+
     def run_scan(self):
 
         if not self.file_path:
             self.log("[ERROR] No file selected.")
             return
+
+        suspicious_hash = self.compare_hash(HASH_LIST, self.file_path)
+        if(suspicious_hash):
+            self.log("SUSPICIOUS hash signature detected")
+        else:
+            self.log("no suspicious hash signature detected")
 
         copied_path = os.path.join(WORK_DIR, os.path.basename(self.file_path))
 
