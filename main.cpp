@@ -40,16 +40,10 @@ int main(int argc, char* argv[]) {
 
     log << "[1] Scanning file..." << endl;
     bool hashsignature_found = scanner.scanFile(fileToScan, "signatures.txt"); 
-    bool unencrypted_signature_found = scanner.scanFile(fileToScan, "unencrypted_signatures.txt"); 
 
     if (hashsignature_found)
     { 
-        log << "SUSPICIOUS_SIGNATURE FOUND (encrypted)" << endl;
-    }
-
-    if (unencrypted_signature_found)
-    { 
-        log << "SUSPICIOUS_SIGNATURE FOUND (unencrypted)" << endl;
+        log << "SUSPICIOUS_SIGNATURE FOUND" << endl;
     }
     
 
