@@ -18,7 +18,9 @@ c.execute('''CREATE TABLE IF NOT EXISTS data
              (number INTEGER PRIMARY KEY AUTOINCREMENT,
              app_name TEXT,
              suspicious_signature TEXT, 
-             suspicious_registry TEXT)''')
+             suspicious_registry TEXT, 
+             suspicious_hash TEXT, 
+             suspicious_connection TEXT)''')
 conn.commit()
 
 # Path settings
@@ -299,7 +301,7 @@ class AntivirusGUI:
 
             shutil.move(os.path.join(REGSHOT_DIFF_FILE, new_name), OLD_SNAPSHOT_FOLDER)
 
-            c.execute("INSERT INTO data (app_name, suspicious_signature, suspicious_registry) VALUES (?, ?, ?)", (self.file_path, str(self.suspicious_signature_found.get()), str(self.suspicious_registry_found.get())))
+            c.execute("INSERT INTO data (app_name, suspicious_signature, suspicious_registry, suspicious_hash, suspicious_connection) VALUES (?, ?, ?, ?, ?)", (self.file_path, str(self.suspicious_signature_found.get()), str(self.suspicious_registry_found.get()), str(self.suspicious_hash.get()), str(self.suspicious_tor_connection.get())))
             conn.commit()
 
 
