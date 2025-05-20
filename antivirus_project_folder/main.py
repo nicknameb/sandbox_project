@@ -11,7 +11,7 @@ import requests
 import traceback
 import hashlib
 
-conn = sqlite3.connect('scores.db', check_same_thread=False)
+conn = sqlite3.connect('scan_results.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS data
