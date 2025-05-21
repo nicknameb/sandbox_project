@@ -3,13 +3,54 @@
 #include <cstdlib> 
 #include "sandbox_vm.h"  
 #include <chrono>
-#include <fstream> 
+#include <fstream>  
+#include <sstream>
+#include <cstdint> 
+#include <algorithm>
 using namespace std; 
-using namespace std::chrono;
+using namespace  chrono;
 
-  
+ 
+uint64_t ExtractFreeBytes(const  string& output) {
+    istringstream stream(output);
+    string line;
+    int lineCount = 0;
 
-bool RunCommandVM(const string& vboxPath, const string& vmName, const string& command)
+    while (getline(stream, line)) {
+        // Trim the line
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+        if (line.empty()) continue;
+
+        lineCount++;
+        if (lineCount <= 2) continue;  // Skip header lines
+
+        istringstream linestream(line);
+        string freeStr;
+
+        linestream >> freeStr;
+        if (freeStr.empty()) {
+            cerr << "Failed to find FreeSpace value in line: [" << line << "]\n";
+            return 0;
+        }
+
+        try {
+            uint64_t result = stoull(freeStr);
+            cout << "Parsed FreeSpace: " << result << "\n";
+            return result;
+        }
+        catch (const exception& e) {
+            cerr << "Conversion error: " << e.what() << " on value: " << freeStr << "\n";
+            return 0;
+        }
+    }
+
+    cerr << "No valid line found after headers.\n";
+    return 0;
+}
+
+bool RunCommandVM(const string& vboxPath, const string& vmName, const string& command, bool is_space_command = false, const string& hostfile_path = "default.txt")
 {  
     char path_buffer[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, path_buffer);
@@ -61,6 +102,28 @@ bool RunCommandVM(const string& vboxPath, const string& vmName, const string& co
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);  
 
+        if (is_space_command) //the command is to check how much space there is
+        {  
+            uint64_t free_bytes = ExtractFreeBytes(output); 
+            if (free_bytes == 0)
+            { 
+                log << "ERROR: did not find free bytes" << endl;  
+                log << output << endl;
+                return 0;
+            }  
+
+            ifstream file(hostfile_path, ifstream::ate | ifstream::binary); //get file size of app to scan
+            uint64_t file_size = static_cast<uint64_t>(file.tellg());  
+
+            if (file_size > (free_bytes / 2))  //not enough free space in vm
+            { 
+                log << "ERROR: not enough free space in the vm" << endl;  
+                log << output << endl;
+                return false;
+            }
+            
+        } 
+
         log << output << endl;
         return true;
     }
@@ -73,7 +136,10 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     string current_dir(path_buffer);
     string log_file = current_dir + "\\scan_output.txt";
 
-    ofstream log(log_file, ios::app);
+    ofstream log(log_file, ios::app); 
+
+    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+
 
     //make sure the vm is powered off
     string power_off_command = "\"" + vboxPath + "\" controlvm \"" + vmName + "\" poweroff"; 
@@ -129,9 +195,24 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
         log << vm_launch_output << endl;
     }
 
-    Sleep(35000);
+    Sleep(35000); 
 
-    //run bat file to run regshot and take a snapshoy of the registry
+    string copy_file_bat = guestfile_path + "copy_malware.bat";
+    string copy_file_command = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_file_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_file_bat + "\""; 
+    RunCommandVM(vboxPath, vmName, copy_file_command); 
+
+    string check_space_bat = guestfile_path + "check_space.bat";
+    string check_space_command = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + check_space_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + check_space_bat + "\"";
+    
+    bool enough_space  = RunCommandVM(vboxPath, vmName, check_space_command, true, hostfile_path); 
+    if (!enough_space)
+    {  
+        log << "failed to run file in vm, not enough space" << endl;
+        return false; 
+    }
+
+
+    // run bat file to run regshot and take a snapshot of the registry
     const string take_shot_bat = guestfile_path + "take_shot.bat";
 
     log << "running regshot" << endl;
@@ -148,12 +229,15 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     
 
 
-    //transfer suspicious application to the vm 
     
+    
+    //copy app to shared folder
+    string secondary_copy_bat = hostfile_path + "secondary_copy.bat"; 
+    string secondary_copy_command = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + secondary_copy_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + secondary_copy_bat + "\"";
+    RunCommandVM(vboxPath, vmName, secondary_copy_bat); 
+    Sleep(1000);
 
-    string copy_file_bat = guestfile_path + "copy_malware.bat";
-    string copy_file_command = vboxPath + " guestcontrol \"" + vmName + "\" run --exe \"" + copy_file_bat + "\" --username \"" + username + "\" --password \"" + password + "\" -- \"" + copy_file_bat + "\"";
-    
+    //copy from shared folder to vm
     log << "copying file" << endl;
     RunCommandVM(vboxPath, vmName, copy_file_command);
     Sleep(1000); 
@@ -166,7 +250,6 @@ bool Sandbox_vm::RunVirtualBoxVM(const string& vboxPath, const string& vmName, c
     string malware_location = guestfile_path + app_name;  
     log << "running potential malware" << endl;  
 
-    string powershellPath = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
     string run_malware = "\"" + vboxPath + "\" guestcontrol \"" + vmName + "\" run " "--username \"" + username + "\" " "--password \"" + password + "\" " "--exe \"" + powershellPath + "\" -- \"" + powershellPath + "\" " "-NoProfile -WindowStyle Hidden " "-Command \"Start-Process -FilePath '" + malware_location + "' -WindowStyle Hidden\"";
 
