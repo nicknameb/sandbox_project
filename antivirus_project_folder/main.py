@@ -27,14 +27,14 @@ conn.commit()
 current_directory = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 LOG_FILE = current_directory + "\\scan_output.txt"
-WORK_DIR = current_directory + "\\shared_vm_folder\\shared_container"
+WORK_DIR = current_directory + "\\shared_vm_folder\\secondary_container"
 ANTIVIRUS_EXE = current_directory + "\\sandboxcpp.exe"
 REGSHOT_DIFF_FILE_ORIGINAL = current_directory + "\\shared_vm_folder\\~res-x64.txt"
 REGSHOT_DIFF_FILE = current_directory + "\\snap_result_folder\\~res-x64.txt"
 RESULT_FOLDER = current_directory + "\\snap_result_folder\\"
 OLD_SNAPSHOT_FOLDER = current_directory + "\\old_snapshot_folder\\"
 OLD_SNAP_NAME = "old_snapshot.txt"
-TOR_LIST = WORK_DIR + "\\tor_nodes.txt"
+TOR_LIST = current_directory + "\\shared_vm_folder\\shared_container\\tor_nodes.txt"
 HASH_LIST = current_directory + "\\signatures.txt"
 
 HIGH_PRIORITY_CLASS = 0x00000080
